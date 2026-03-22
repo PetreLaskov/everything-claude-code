@@ -16,7 +16,7 @@
 - [x] package.json
 - [x] .gitignore (updated)
 - [x] .claude-plugin/plugin.json (stub)
-- [ ] Git initial commit
+- [x] Git initial commit (8c6fc64)
 
 ### Rules (5) — Session 1
 - [ ] teaching-voice.md
