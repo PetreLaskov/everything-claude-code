@@ -42,3 +42,8 @@ examples/sessions/*.tmp
 # Local drafts
 marketing/
 .dmux/
+
+# MDH learner state (local, private)
+state/learner-profile.json
+state/session-history/
+state/project-history/
