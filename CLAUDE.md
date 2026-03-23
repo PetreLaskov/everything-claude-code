@@ -28,7 +28,7 @@ tests/        Unit + integration tests
 - Haiku (mechanical): `doc-writer`, `progress-reporter`
 
 **Commands (16):**
-`/start`, `/discover`, `/build`, `/plan`, `/implement`, `/review`, `/verify`, `/commit`, `/explain`, `/level`, `/progress`, `/set-verbosity`, `/why`, `/challenge`, `/save-session`, `/resume-session`
+`/start`, `/discover`, `/build`, `/plan`, `/implement`, `/review`, `/verify`, `/commit`, `/explain`, `/level`, `/progress`, `/detail-level`, `/why`, `/challenge`, `/save-session`, `/resume-session`
 
 **Core Libraries (scripts/lib/):**
 - `learner-profile.js` — Profile CRUD, schema validation

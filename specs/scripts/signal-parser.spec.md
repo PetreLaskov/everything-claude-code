@@ -59,7 +59,7 @@ From plan section 2.2, the complete signal rules:
 |---|---|---|---|---|
 | User modifies a plan before approving | planning | +0.15 | requirements_analysis | Bash tool with `git diff` on a plan file showing user-authored changes |
 | User asks "why" about a design decision | architecture | +0.10 | separation_of_concerns | (detected at message level, not tool level — see note below) |
-| User catches issue before reviewer | review | +0.20 | evaluating_severity | User Edit that fixes a problem before dev-reviewer runs |
+| User raises a concern before review runs | review | +0.20 | evaluating_severity | (message-level — user asks about a risk, quality concern, or missing case before the reviewer agent is invoked. This measures steering judgment, not code reading.) |
 | User writes conventional commit message | git_workflow | +0.15 | commit_messages | Bash with `git commit -m` where message follows conventional format |
 | User requests edge case test | implementation | +0.20 | tdd_red_green_refactor | User-directed test file Write/Edit for scenarios not in the original plan |
 | User adjusts verbosity down | (active dim) | +0.10 | null | (detected by command, not tool event — see note below) |
@@ -74,7 +74,7 @@ From plan section 2.2, the complete signal rules:
 |---|---|---|---|---|
 | Instant plan approval (no review) | planning | -0.05 | requirements_analysis | (timing-based — detected at message level, not tool level) |
 | User asks "what does this mean" | (concept dim) | -0.10 | varies | (message-level detection) |
-| "Just do it for me" pattern | implementation | -0.15 | null | (message-level detection) |
+| "Just do it for me" pattern | implementation | -0.15 | null | (message-level detection). Phase-gated: only negative at Phase 3+. At Phases 0-2 delegation is expected behavior, not a struggle signal. |
 | Same question asked twice | (relevant dim) | -0.10 | varies | Requires session history comparison |
 | Build/test fails after user change | implementation | -0.05 | error_handling | Bash output contains test failure or build error after user-directed Edit |
 | User frustration expression | (active dim) | flag | null | (message-level detection) |
@@ -89,13 +89,13 @@ These are the signals the signal-parser can reliably detect from tool events:
 
 2. **Manual verification run** — Bash tool, `tool_input.command` matches `npm test|npm run test|npm run build|npm run lint|npx jest|npx vitest|npx tsc`. Check that this was NOT preceded by an agent instruction (heuristic: check if there is an active project and the command was user-initiated). Dimension: verification, weight: +0.15.
 
-3. **Build/test failure after user edit** — Bash tool, `tool_output` contains error/failure indicators (`FAIL`, `Error:`, `error TS`, `Build failed`, non-zero exit). Cross-reference: was the previous tool event an Edit initiated by the user? If yes, this is a struggle signal. Dimension: implementation, weight: -0.05.
+3. **Build/test failure after user edit** — Bash tool, `tool_output` contains error/failure indicators (`FAIL`, `Error:`, `error TS`, `Build failed`, non-zero exit). Cross-reference: was the previous tool event an Edit initiated by the user? If yes, this is a struggle signal. Dimension: implementation, weight: -0.05. Phase-gated: only emit this signal at Phase 3+. At Phases 0-2 the learner is experimenting and failures are part of learning, not indicators of struggle.
 
 4. **Security-conscious write** — Write/Edit tool, content adds `.env` references (`process.env.`), input validation (`if (!`, schema validation), or auth middleware. Check that the user's security dimension is < 3 (if already 3+, this is expected behavior, not a signal). Dimension: security, weight: +0.20.
 
 5. **Edge case test write** — Write/Edit tool, `file_path` matches test file pattern (`.test.`, `.spec.`, `__tests__/`). Content includes test cases beyond the basic happy path (error cases, boundary conditions, null inputs). Heuristic: count `describe`/`it`/`test` blocks; if more than what was in the original plan, this indicates user-directed test expansion. Dimension: implementation, weight: +0.20. Sub-concept: tdd_red_green_refactor.
 
-6. **Large file write (anti-pattern)** — Write tool, content exceeds 800 lines. Dimension: architecture, weight: -0.05. Sub-concept: file_structure.
+6. **Large file write (anti-pattern)** — Write tool, content exceeds 800 lines. Dimension: architecture, weight: -0.05. Sub-concept: file_structure. Attribution guard: only emit this signal if the Write was user-directed (not part of an agent execution sequence). If the agent produced an 800+ line file autonomously, the learner's architecture competence should not be penalized — the agent made the structural choice, not the learner.
 
 7. **User-authored plan modification** — Edit tool on a plan file (`.plan.md`, `PLAN.md`, files in `plans/`). The `new_string` contains substantive changes (not just formatting). Dimension: planning, weight: +0.15. Sub-concept: requirements_analysis.
 

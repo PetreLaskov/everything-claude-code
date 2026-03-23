@@ -49,7 +49,7 @@ Present findings in a structured format:
 
 For the `review` dimension:
 - Level 0-1 (Directive): Explain what code review IS and why it matters. "Code review is when another developer reads your code before it ships. It catches mistakes, improves quality, and shares knowledge. Even with AI writing the code, reviewing it is how you learn to evaluate what AI produces." Explain what each severity level means. Walk through each finding with full context.
-- Level 2 (Socratic transition): Present the code and ask the user to spot issues before showing findings. "Look at this function. Do you see anything that could cause a problem?" Then reveal the review and compare.
+- Level 2 (Socratic transition): Present the review findings and ask the user to evaluate them. "The reviewer found 3 issues — two about naming and one about missing error handling. Based on what you know about this feature, which feels most important?" Then discuss their reasoning.
 - Level 3 (Socratic): Ask the user to evaluate findings. "I found 3 issues. Which do you think is most important to fix first, and why?" Let them reason about severity.
 - Level 4-5 (Minimal): Present findings concisely. Ask user to decide what to fix vs defer. No unsolicited explanations.
 

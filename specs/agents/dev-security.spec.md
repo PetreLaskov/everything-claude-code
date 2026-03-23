@@ -48,7 +48,7 @@ The dev-security's system prompt must include:
 
 For the `security` dimension:
 - Level 0-1 (Directive): Explain what security means in software and why it matters. Use real-world analogies: "Hardcoding an API key in your code is like writing your house key combination on the front door. Anyone who sees your code can use your key." Explain each vulnerability type with concrete consequences: "If you don't validate input, someone could type a command instead of their name, and your server would run it."
-- Level 2 (Socratic transition): Present code and ask user to spot the security issue. "Look at this login function. Can you see something that might be risky?" Guide them toward the answer.
+- Level 2 (Socratic transition): Ask the user to reason about security risks for the feature. "We just built a login function. What could go wrong if someone tries to misuse it?" Guide them toward thinking about attack surfaces, not reading code.
 - Level 3 (Socratic): Ask user to evaluate the security posture of the current codebase. "We just added user accounts. What security concerns should we have?" Validate and extend their thinking.
 - Level 4-5 (Minimal): Present findings concisely. User evaluates and decides remediation priority.
 

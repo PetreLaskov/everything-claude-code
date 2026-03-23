@@ -1,7 +1,7 @@
 # Component: project-advisor
 ## Type: agent
 ## Status: pending
-## Dependencies: rules/teaching-voice.md, rules/guardrails.md, skills/project-archetypes/SKILL.md, scripts/lib/project-templates.js, specs/contracts/learner-profile-schema.md
+## Dependencies: rules/teaching-voice.md, rules/guardrails.md, skills/project-types/SKILL.md, scripts/lib/project-templates.js, specs/contracts/learner-profile-schema.md
 ## Session Target: Session 3 (agents, Phase 2 of build plan)
 
 ## What This Is
@@ -28,7 +28,7 @@ The project-advisor's system prompt must include:
 
 **State Reading (mandatory at invocation start):**
 - Read `state/learner-profile.json` to determine: user.name, user.domain, user.interests, user.stated_experience, current phase (should be 0), existing projects (to avoid re-suggesting).
-- Read `skills/project-archetypes/SKILL.md` for the project template library.
+- Read `skills/project-types/SKILL.md` for the project template library.
 
 **Discovery Interview Protocol (3-5 questions, never more):**
 1. "What do you do for work or what are you interested in?" (establishes domain)
@@ -77,7 +77,7 @@ Based on interview answers, match to 1-3 project archetypes from 6 routes:
 
 **What the Project-Advisor Reads:**
 - `state/learner-profile.json` (user info, existing projects)
-- `skills/project-archetypes/SKILL.md` (template library)
+- `skills/project-types/SKILL.md` (template library)
 - `scripts/lib/project-templates.js` data (via the skill content)
 
 **What the Project-Advisor Produces:**

@@ -1,97 +1,59 @@
 #!/usr/bin/env node
+'use strict';
+
 /**
- * Run all tests
- *
- * Usage: node tests/run-all.js
+ * MDH Test Runner
+ * Discovers and runs all *.test.js files using Node's built-in test runner.
+ * Usage: node tests/run-all.js [filter]
+ *   filter — optional substring to match test file paths
  */
 
-const { spawnSync } = require('child_process');
+const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
 const testsDir = __dirname;
+const filter = process.argv[2] || '';
 
-/**
- * Discover all *.test.js files under testsDir (relative paths for stable output order).
- */
-function discoverTestFiles(dir, baseDir = dir, acc = []) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    const rel = path.relative(baseDir, full);
-    if (e.isDirectory()) {
-      discoverTestFiles(full, baseDir, acc);
-    } else if (e.isFile() && e.name.endsWith('.test.js')) {
-      acc.push(rel);
+function findTestFiles(dir) {
+  const results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...findTestFiles(fullPath));
+    } else if (entry.name.endsWith('.test.js')) {
+      results.push(fullPath);
     }
   }
-  return acc.sort();
+  return results;
 }
 
-const testFiles = discoverTestFiles(testsDir);
+const testFiles = findTestFiles(testsDir)
+  .filter(f => f.includes(filter))
+  .sort();
 
-const BOX_W = 58; // inner width between ║ delimiters
-const boxLine = s => `║${s.padEnd(BOX_W)}║`;
+if (testFiles.length === 0) {
+  console.log('No test files found' + (filter ? ` matching "${filter}"` : '') + '.');
+  process.exit(0);
+}
 
-console.log('╔' + '═'.repeat(BOX_W) + '╗');
-console.log(boxLine('           Everything Claude Code - Test Suite'));
-console.log('╚' + '═'.repeat(BOX_W) + '╝');
-console.log();
+console.log(`\nRunning ${testFiles.length} test file(s)...\n`);
 
-let totalPassed = 0;
-let totalFailed = 0;
-let totalTests = 0;
+let passed = 0;
+let failed = 0;
 
-for (const testFile of testFiles) {
-  const testPath = path.join(testsDir, testFile);
-
-  if (!fs.existsSync(testPath)) {
-    console.log(`⚠ Skipping ${testFile} (file not found)`);
-    continue;
-  }
-
-  console.log(`\n━━━ Running ${testFile} ━━━`);
-
-  const result = spawnSync('node', [testPath], {
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe']
-  });
-
-  const stdout = result.stdout || '';
-  const stderr = result.stderr || '';
-
-  // Show both stdout and stderr so hook warnings are visible
-  if (stdout) console.log(stdout);
-  if (stderr) console.log(stderr);
-
-  // Parse results from combined output
-  const combined = stdout + stderr;
-  const passedMatch = combined.match(/Passed:\s*(\d+)/);
-  const failedMatch = combined.match(/Failed:\s*(\d+)/);
-
-  if (passedMatch) totalPassed += parseInt(passedMatch[1], 10);
-  if (failedMatch) totalFailed += parseInt(failedMatch[1], 10);
-
-  if (result.error) {
-    console.log(`✗ ${testFile} failed to start: ${result.error.message}`);
-    totalFailed += failedMatch ? 0 : 1;
-    continue;
-  }
-
-  if (result.status !== 0) {
-    console.log(`✗ ${testFile} exited with status ${result.status}`);
-    totalFailed += failedMatch ? 0 : 1;
+for (const file of testFiles) {
+  const rel = path.relative(testsDir, file);
+  try {
+    execSync(`node --test "${file}"`, { stdio: 'inherit', timeout: 30000 });
+    passed++;
+  } catch {
+    failed++;
   }
 }
 
-totalTests = totalPassed + totalFailed;
+console.log(`\n${'='.repeat(50)}`);
+console.log(`Results: ${passed} passed, ${failed} failed, ${testFiles.length} total`);
+console.log('='.repeat(50));
 
-console.log('\n╔' + '═'.repeat(BOX_W) + '╗');
-console.log(boxLine('                     Final Results'));
-console.log('╠' + '═'.repeat(BOX_W) + '╣');
-console.log(boxLine(`  Total Tests: ${String(totalTests).padStart(4)}`));
-console.log(boxLine(`  Passed:      ${String(totalPassed).padStart(4)}  ✓`));
-console.log(boxLine(`  Failed:      ${String(totalFailed).padStart(4)}  ${totalFailed > 0 ? '✗' : ' '}`));
-console.log('╚' + '═'.repeat(BOX_W) + '╝');
-
-process.exit(totalFailed > 0 ? 1 : 0);
+process.exit(failed > 0 ? 1 : 0);

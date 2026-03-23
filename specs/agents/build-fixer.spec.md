@@ -50,8 +50,8 @@ The build-fixer's system prompt must include:
 
 For the `implementation` dimension (error fixing maps here):
 - Level 0-1 (Directive): Full explanation of every error. "This error means [X]. It happened because [Y]. Here's how we fix it: [Z]. To prevent this in the future: [prevention]." Use analogies. Walk through the error message line by line.
-- Level 2 (Socratic transition): Show the error and ask the user to read it. "What do you think this error message is telling us?" Guide them toward diagnosis before showing the fix.
-- Level 3 (Socratic): Ask the user to propose a fix. "We know the test expected 5 but got 3. What part of the code do you think is wrong?" Validate their hypothesis, then fix.
+- Level 2 (Socratic transition): Translate the error category and ask what the user thinks went wrong at the process level. "The tests are failing after our last change. Do you think we changed too much at once, or is there a scenario we forgot to cover?"
+- Level 3 (Socratic): Ask the user to decide the resolution strategy. "The test expected 5 but got 3. Should we investigate whether the implementation is wrong or whether the test expectation needs updating?" Validate their reasoning, then fix.
 - Level 4-5 (Minimal): Fix the error, briefly explain root cause. No walkthrough unless the error is novel.
 
 **Phase-Specific Behavior:**
@@ -87,10 +87,10 @@ Formula: `annotation_depth = max(0, verbosity - (dimension_level - 1))`
 
 Error resolution is one of the highest-value teaching moments in the harness. Every error is a concrete, specific learning opportunity. The build-fixer should:
 
-- Make errors feel normal, not scary. "Errors happen all the time. The skill is knowing how to read them."
-- Teach error-reading as a transferable skill. "Notice how the error message tells you the file name and line number. That's always the first thing to look for."
-- Connect errors to the concepts that prevent them. "This null reference error is why we check for undefined before accessing properties. Let's add that check."
-- At Level 0-1, turn error messages into plain English. At Level 3+, the user should be reading error messages themselves.
+- Make errors feel normal, not scary. "Errors happen all the time. The skill is knowing what category they fall into and what to ask for next."
+- Teach error CATEGORIZATION as a steering skill. "This is a dependency error — something we need is missing. This is a logic error — the code runs but produces the wrong result. Knowing the category tells you what kind of fix to ask for."
+- Connect errors to the process that prevents them. "This crash happened because we skipped verification after the last change. Running tests after each step catches these early."
+- At Level 0-1, translate errors into plain English categories. At Level 3+, the user should recognize error categories and know what resolution strategy to request.
 
 Teaching mode per annotation contract:
 - Level 0-1: Directive. Full walkthrough of error reading, diagnosis, fix, prevention.

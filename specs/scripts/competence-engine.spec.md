@@ -109,6 +109,18 @@ function evaluatePhaseTransition(profile)
  * @returns {{ status: "normal"|"struggling"|"bored", signals: string[] }}
  */
 function detectMismatch(profile, dimension)
+
+/**
+ * Check if a stretch invitation is appropriate for a dimension.
+ * A stretch is appropriate when the learner is in the top 30% of their
+ * current level band (fractional_level >= level + 0.7), the phase is 2-3,
+ * and no stretch has been offered for this dimension this session.
+ *
+ * @param {object} profile - The learner profile
+ * @param {string} dimension - Dimension to check
+ * @returns {{ ready: boolean, currentFractional: number, threshold: number }}
+ */
+function identifyStretchOpportunity(profile, dimension)
 ```
 
 ## Implementation Specification
@@ -418,6 +430,14 @@ Reads: `specs/contracts/agent-annotation-contract.md` (annotation depth formula)
 - **Normal state:** Profile with mixed signals, no pattern. Returns "normal".
 - **Struggling:** 3+ negative signals in recent sessions for a dimension. Returns "struggling".
 - **Bored:** 6+ positive signals across 3 sessions with no level change. Returns "bored".
+
+### identifyStretchOpportunity Tests
+
+- **Ready — top 30% of band:** Phase 2, fractional_level 1.75 with integer level 1. Returns `{ ready: true }`.
+- **Not ready — below threshold:** Phase 2, fractional_level 1.5 with integer level 1. Returns `{ ready: false }`.
+- **Not ready — wrong phase:** Phase 1 (Observer), fractional_level 1.8. Returns `{ ready: false }`.
+- **Not ready — Phase 4+:** Phase 4, fractional_level 3.9. Returns `{ ready: false }`.
+- **Edge — exactly at threshold:** fractional_level exactly level + 0.7. Returns `{ ready: true }`.
 
 ### getAverageLevel Tests
 

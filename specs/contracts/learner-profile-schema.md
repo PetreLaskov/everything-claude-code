@@ -96,10 +96,10 @@
 |---|---|---|
 | 0 | Unaware | Has not encountered this concept |
 | 1 | Aware | Has seen it, needs full guidance |
-| 2 | Familiar | Understands the idea, needs help executing |
-| 3 | Competent | Can execute with occasional guidance |
-| 4 | Proficient | Can execute independently, understands trade-offs |
-| 5 | Expert | Can make novel decisions, teach others |
+| 2 | Familiar | Understands the idea, needs help directing |
+| 3 | Competent | Can direct with occasional guidance |
+| 4 | Proficient | Can direct independently, understands trade-offs |
+| 5 | Expert | Can make novel decisions, guide others |
 
 ## Default Profile (New User)
 
@@ -113,6 +113,6 @@ All dimensions at level 0, confidence 0.3, verbosity 3, phase 0, teaching_mode "
   - `scripts/hooks/level-signal-capture.js` — updates signal_accumulator and levels
   - `scripts/hooks/session-start-loader.js` — creates default profile if none exists
   - `/level` command — manual override
-  - `/set-verbosity` command — updates settings.verbosity
+  - `/detail-level` command — updates settings.verbosity
   - `/start` command — initializes user section
   - `/discover` command — adds project entries

@@ -1,7 +1,7 @@
 # Component: dev-builder
 ## Type: agent
 ## Status: pending
-## Dependencies: rules/teaching-voice.md, rules/adaptive-behavior.md, rules/methodology-enforcement.md, rules/guardrails.md, skills/tdd-methodology/SKILL.md, skills/code-quality/SKILL.md, skills/dev-pipeline/SKILL.md, specs/contracts/agent-annotation-contract.md, specs/contracts/learner-profile-schema.md
+## Dependencies: rules/teaching-voice.md, rules/adaptive-behavior.md, rules/methodology-enforcement.md, rules/guardrails.md, skills/test-driven-development/SKILL.md, skills/code-quality/SKILL.md, skills/dev-pipeline/SKILL.md, specs/contracts/agent-annotation-contract.md, specs/contracts/learner-profile-schema.md
 ## Session Target: Session 3 (agents, Phase 2 of build plan)
 
 ## What This Is
@@ -61,20 +61,20 @@ The implementation process follows the Red-Green-Refactor cycle:
 For the `implementation` dimension:
 - Level 0-1 (Directive): Explain every step of TDD. "I'm writing the test FIRST. This is called Test-Driven Development. We define what 'correct' looks like before writing any code. Watch what happens when I run this test -- it should fail, because we haven't written the code yet. That failure is actually good news." Explain what assertions are, what test runners do, what "passing" and "failing" mean.
 - Level 2 (Socratic transition): Ask the user what to test: "What cases should we test for this function? What happens with invalid input?" Write the tests based on their answers.
-- Level 3 (Socratic): Ask the user to describe the test approach. "How would you test this? What edge cases matter?" Validate their thinking and execute.
-- Level 4-5 (Minimal): Execute TDD. Annotate only novel patterns (new assertion types, mocking techniques, test organization strategies).
+- Level 3 (Socratic): Ask the user to specify what needs verifying. "What scenarios should we make sure are covered? What could go wrong for a real user?" Validate their thinking and execute.
+- Level 4-5 (Minimal): Execute TDD. Annotate only novel patterns the user has not encountered before.
 
-For sub-concepts:
-- `tdd_red_green_refactor`: The core cycle. Most annotation-heavy at low levels.
-- `file_organization`: Teach where files go and why (feature-based organization, separation of concerns).
-- `error_handling`: Teach why errors need explicit handling, what try/catch does, what error messages should convey.
-- `immutability`: Teach why we create new objects instead of modifying existing ones.
-- `input_validation`: Teach why external data cannot be trusted, how schema validation works.
+For sub-concepts — teach WHAT to demand and HOW to verify, not implementation mechanics:
+- `tdd_red_green_refactor`: Teach the cycle as a verification protocol. The learner should know to check: did the test fail first? Did it pass after? Did anything else break?
+- `file_organization`: Teach that well-organized code is easier to change later. If the reviewer flags file size or structure, approve the fix.
+- `error_handling`: Teach that errors should never crash silently. The learner should demand: "What happens if the network is down? What happens if the input is empty?"
+- `immutability`: Teach as a quality signal. If the reviewer flags mutation, it is worth fixing — it prevents a category of bugs that are hard to find.
+- `input_validation`: Teach that external data cannot be trusted. The learner should demand: "Is all user input validated before it reaches the database?"
 
 **Phase-Specific Behavior:**
 - Phase 1 (Observer): Claude writes all code and tests. Full narration of every step. User watches.
 - Phase 2 (Co-Pilot): Claude writes code but asks user for test case ideas. "What should happen if...?" User contributes test descriptions in natural language, Claude writes the actual test code.
-- Phase 3 (Navigator): User initiates what to implement. Claude scaffolds but waits for direction. User may start modifying generated code.
+- Phase 3 (Navigator): User initiates what to implement and specifies requirements. Claude builds to spec. User evaluates the output and directs revisions.
 - Phase 4-5 (Driver/Graduate): Execute on instruction. No unsolicited explanations.
 
 **Handling "Just Do It":**
@@ -85,7 +85,7 @@ For sub-concepts:
 
 **What the Dev-Builder Reads:**
 - `state/learner-profile.json` (levels, phase, verbosity)
-- `skills/tdd-methodology/SKILL.md` (reference methodology)
+- `skills/test-driven-development/SKILL.md` (reference methodology)
 - `skills/code-quality/SKILL.md` (coding standards)
 - The plan from the planning step (if available)
 - Existing project source files

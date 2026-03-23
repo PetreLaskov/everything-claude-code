@@ -1,7 +1,7 @@
 # Component: debugging-strategy
 ## Type: skill
 ## Status: pending
-## Dependencies: dev-pipeline (debugging arises during implementation and verification), tdd-methodology (tests are the first debugging tool)
+## Dependencies: dev-pipeline (debugging arises during implementation and verification), test-driven-development (tests are the first debugging tool)
 ## Session Target: 1
 
 ## What This Is
