@@ -1,0 +1,24 @@
+{
+  "display_name": "Master Dev Harness",
+  "tagline": "Learn to build real software — adaptive mentorship for non-developers",
+  "category": "workflow",
+  "icon": "graduation-cap",
+  "components": {
+    "agents": 12,
+    "commands": 16,
+    "skills": 15,
+    "hooks": 5,
+    "rules": 5
+  },
+  "requirements": {
+    "node": ">=18.0.0"
+  },
+  "audience": "Non-developers who want to build real software with Claude Code guidance",
+  "highlights": [
+    "9-dimension competence tracking with adaptive difficulty",
+    "6 learning phases from Discovery to Graduate",
+    "12 specialized agents with embedded teaching methodology",
+    "16 slash commands for the full development lifecycle",
+    "Warn-only guardrails that teach without blocking"
+  ]
+}

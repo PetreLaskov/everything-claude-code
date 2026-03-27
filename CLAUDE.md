@@ -11,7 +11,7 @@ MDH is a standalone commercial plugin. ECC methodology is embedded as self-knowl
 ```
 agents/       12 agents (2 Opus, 8 Sonnet, 2 Haiku)
 commands/     16 slash commands
-skills/       14 skills (ECC methodology as teaching content)
+skills/       15 skills (ECC methodology as teaching content)
 hooks/        5 hooks (minimal, deliberate)
 rules/        5 rules (teaching voice, guardrails, adaptive behavior)
 scripts/      hooks/ (hook implementations), lib/ (core libraries)

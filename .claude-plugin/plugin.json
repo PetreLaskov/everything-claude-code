@@ -1,9 +1,22 @@
 {
   "name": "master-dev-harness",
-  "version": "0.1.0",
-  "description": "Interactive development mentorship — teaches non-developers to build real software through Claude Code",
-  "category": "workflow",
-  "agents": [],
-  "commands": [],
-  "skills": []
+  "version": "1.0.0",
+  "description": "Interactive development mentorship — teaches intelligent non-developers to build real software through guided, adaptive, learning-by-doing mentorship via Claude Code",
+  "author": {
+    "name": "Pece"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "mentorship",
+    "teaching",
+    "non-developers",
+    "adaptive-learning",
+    "tdd",
+    "code-review",
+    "security",
+    "workflow",
+    "agents",
+    "skills"
+  ]
 }

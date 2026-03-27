@@ -1,6 +1,6 @@
 {
   "name": "master-dev-harness",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A Claude Code plugin that teaches intelligent non-developers to build real software through guided, adaptive mentorship",
   "author": "Pece",
   "license": "MIT",
