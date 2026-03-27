@@ -12,6 +12,8 @@ const SECRET_PATTERNS = [
   /(?:api[_-]?key|secret|password|token|credential)\s*[:=]\s*['"][^'"]{8,}['"]/i,
   /(?:AKIA|sk-|ghp_|gho_|glpat-|xox[bpoas]-)\w+/,
   /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/,
+  /process\.env\.\w+\s*\|\|\s*['"][^'"]{8,}['"]/,
+  /`[^`]*(?:api[_-]?key|secret|password|token|credential)[^`]*`/i,
 ];
 
 const LARGE_FILE_THRESHOLD = 800;

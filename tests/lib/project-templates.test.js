@@ -57,6 +57,14 @@ describe('getAllTemplates', () => {
       assert.ok(routes.has(route), `Missing route: ${route}`);
     }
   });
+
+  it('has at least 1 template per route', () => {
+    const templates = getAllTemplates();
+    for (const route of EXPECTED_ROUTES) {
+      const count = templates.filter(t => t.route === route).length;
+      assert.ok(count >= 1, `Route "${route}" has ${count} templates, expected >= 1`);
+    }
+  });
 });
 
 describe('template schema validity', () => {

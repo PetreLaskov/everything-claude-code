@@ -162,9 +162,9 @@ describe('loadProfile', () => {
     assert.deepStrictEqual(loaded, original);
   });
 
-  it('throws on invalid JSON', () => {
+  it('returns null on invalid JSON', () => {
     fs.writeFileSync(path.join(tmpDir, 'learner-profile.json'), '{not valid json!!!');
-    assert.throws(() => loadProfile());
+    assert.equal(loadProfile(), null);
   });
 });
 

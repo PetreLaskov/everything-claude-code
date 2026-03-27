@@ -47,8 +47,11 @@ for (const file of testFiles) {
   try {
     execSync(`node --test "${file}"`, { stdio: 'inherit', timeout: 30000 });
     passed++;
-  } catch {
+  } catch (err) {
     failed++;
+    if (err.signal) {
+      console.error(`  CRASHED (${err.signal}): ${rel}`);
+    }
   }
 }
 

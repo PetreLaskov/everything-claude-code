@@ -84,7 +84,9 @@ function main() {
     // Novel concept detection
     let novelConcept = false;
     const filePath = (input.tool_input && input.tool_input.file_path) || '';
-    const content = (input.tool_input && (input.tool_input.content || input.tool_input.new_string)) || '';
+    // Limit content scan for sub-concept detection — patterns are detectable in first 2000 chars
+    const rawContent = (input.tool_input && (input.tool_input.content || input.tool_input.new_string)) || '';
+    const content = rawContent.slice(0, 2000);
 
     if (dimData.sub_concepts) {
       for (const [scName, scData] of Object.entries(dimData.sub_concepts)) {

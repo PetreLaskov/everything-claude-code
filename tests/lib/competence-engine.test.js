@@ -91,7 +91,7 @@ describe('updateLevel', () => {
         break;
       }
     }
-    assert.ok(levelUp, 'Should have triggered a level-up');
+    assert.ok(levelUp, `Should have triggered a level-up within 20 signals. Final fractional: ${current.dimensions.implementation.fractional_level}`);
   });
 
   it('triggers level-down on boundary crossing', () => {
@@ -113,7 +113,7 @@ describe('updateLevel', () => {
         break;
       }
     }
-    assert.ok(levelDown, 'Should have triggered a level-down');
+    assert.ok(levelDown, `Should have triggered a level-down within 30 signals. Final fractional: ${current.dimensions.implementation.fractional_level}`);
   });
 
   it('does not change level with only 2 small signals', () => {
@@ -267,7 +267,7 @@ describe('updateLevel', () => {
         break;
       }
     }
-    assert.ok(levelUpHappened, 'Should level up within 12 signals of +0.15 (dampening grows)');
+    assert.ok(levelUpHappened, `Should level up within 12 signals of +0.15. Final fractional: ${current.dimensions.implementation.fractional_level}`);
   });
 });
 

@@ -27,9 +27,13 @@ function teardownTmpDir() {
 function createProfile(overrides = {}) {
   const { createDefaultProfile } = require('../../scripts/lib/learner-profile');
   const origDir = process.env.MDH_STATE_DIR;
-  process.env.MDH_STATE_DIR = tmpDir;
-  const profile = createDefaultProfile();
-  process.env.MDH_STATE_DIR = origDir;
+  let profile;
+  try {
+    process.env.MDH_STATE_DIR = tmpDir;
+    profile = createDefaultProfile();
+  } finally {
+    process.env.MDH_STATE_DIR = origDir;
+  }
 
   // Apply overrides via deep merge
   const merged = applyOverrides(profile, overrides);

@@ -31,8 +31,10 @@ function detectConventionalCommit(toolName, toolInput) {
   const cmd = toolInput.command || '';
   if (!cmd.includes('git commit')) return null;
 
-  // Extract the commit message from the command
-  const msgMatch = cmd.match(/git commit\s+.*-m\s+["'](.+?)["']/);
+  // Extract the commit message from the command (-m, --message, -am forms)
+  const msgMatch =
+    cmd.match(/git commit\s+.*?(?:-m|--message)\s+["'](.+?)["']/) ||
+    cmd.match(/git commit\s+.*?-am\s+["'](.+?)["']/);
   if (!msgMatch) return null;
 
   if (CONVENTIONAL_COMMIT_RE.test(msgMatch[1])) {
@@ -76,7 +78,8 @@ function detectBuildFailAfterEdit(toolName, toolInput, toolOutput, profile, cont
   // Must have been preceded by a user edit
   if (!context || !context.lastToolWasUserEdit) return null;
 
-  const hasFailure = FAILURE_INDICATORS.some(indicator => toolOutput.includes(indicator));
+  const outputStr = typeof toolOutput === 'string' ? toolOutput : JSON.stringify(toolOutput);
+  const hasFailure = FAILURE_INDICATORS.some(indicator => outputStr.includes(indicator));
   if (!hasFailure) return null;
 
   return {

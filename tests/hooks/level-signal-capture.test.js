@@ -27,9 +27,13 @@ function teardownTmpDir() {
 function createProfile(overrides = {}) {
   const { createDefaultProfile } = require('../../scripts/lib/learner-profile');
   const origDir = process.env.MDH_STATE_DIR;
-  process.env.MDH_STATE_DIR = tmpDir;
-  const profile = createDefaultProfile();
-  process.env.MDH_STATE_DIR = origDir;
+  let profile;
+  try {
+    process.env.MDH_STATE_DIR = tmpDir;
+    profile = createDefaultProfile();
+  } finally {
+    process.env.MDH_STATE_DIR = origDir;
+  }
 
   const merged = applyOverrides(profile, overrides);
   fs.writeFileSync(
@@ -172,21 +176,43 @@ describe('level-signal-capture hook script', () => {
       // May or may not produce output depending on signal-parser
     });
 
-    it('captures test-writing signal from .test.js file write', () => {
-      createProfile();
-      const result = runHook(makeWriteTestEvent());
+    it('captures test-writing signal from .test.js file write with edge cases', () => {
+      const initial = createProfile();
+      // Must have 3+ test cases and error keywords to trigger detectEdgeCaseTest
+      const result = runHook({
+        tool_name: 'Write',
+        tool_input: {
+          file_path: '/project/src/app.test.js',
+          content: [
+            'const { test } = require("node:test");',
+            'test("handles valid input", () => { assert.ok(true); });',
+            'test("handles null input", () => { assert.throws(() => fn(null)); });',
+            'test("handles invalid data", () => { assert.throws(() => fn(undefined)); });',
+            'test("handles empty string", () => { assert.equal(fn(""), null); });',
+          ].join('\n'),
+        },
+        tool_output: null,
+      });
       assert.equal(result.exitCode, 0);
-      // The signal should be processed — profile may be updated
       const profile = loadPersistedProfile();
       assert.ok(profile, 'Profile should still exist after signal capture');
+      const totalAfter = Object.values(profile.signal_accumulator).reduce((a, b) => a + b, 0);
+      const totalBefore = Object.values(initial.signal_accumulator).reduce((a, b) => a + b, 0);
+      assert.ok(totalAfter > totalBefore,
+        `Signal accumulator should increase (before: ${totalBefore}, after: ${totalAfter})`);
     });
 
-    it('captures implementation signal from code write', () => {
-      createProfile();
-      const result = runHook(makeWriteCodeEvent());
+    it('captures verification signal from manual test run', () => {
+      const initial = createProfile();
+      // npm test triggers detectManualVerification
+      const result = runHook(makeBashTestRunEvent());
       assert.equal(result.exitCode, 0);
       const profile = loadPersistedProfile();
       assert.ok(profile, 'Profile should still exist after signal capture');
+      const totalAfter = Object.values(profile.signal_accumulator).reduce((a, b) => a + b, 0);
+      const totalBefore = Object.values(initial.signal_accumulator).reduce((a, b) => a + b, 0);
+      assert.ok(totalAfter > totalBefore,
+        `Signal accumulator should increase (before: ${totalBefore}, after: ${totalAfter})`);
     });
   });
 

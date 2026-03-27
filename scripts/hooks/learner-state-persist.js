@@ -3,7 +3,6 @@
 // learner-state-persist.js — Stop hook
 // Persists learner profile and records session history entry on session end.
 
-const fs = require('fs');
 const path = require('path');
 
 function main() {
@@ -41,10 +40,11 @@ function main() {
       };
     }
 
+    const settings = profile.settings || {};
     const sessionEntry = {
       date: now.toISOString(),
       duration_minutes: durationMinutes,
-      phase: profile.settings.phase,
+      phase: settings.phase != null ? settings.phase : 0,
       dimension_signals: dimensionSignals,
       level_changes: [],
     };

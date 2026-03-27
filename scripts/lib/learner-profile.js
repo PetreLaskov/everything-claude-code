@@ -31,13 +31,19 @@ const DEFAULT_SUB_CONCEPTS = {
 // --- Path Resolution ---
 
 function getProfilePath() {
-  if (process.env.MDH_STATE_DIR) {
-    return path.join(process.env.MDH_STATE_DIR, 'learner-profile.json');
+  const baseDir = process.env.MDH_STATE_DIR
+    || (process.env.CLAUDE_PLUGIN_ROOT && path.join(process.env.CLAUDE_PLUGIN_ROOT, 'state'))
+    || path.resolve(__dirname, '..', '..', 'state');
+
+  const resolved = path.resolve(baseDir, 'learner-profile.json');
+  const safeRoot = path.resolve(baseDir);
+
+  // Prevent path traversal via malicious env vars
+  if (!resolved.startsWith(safeRoot + path.sep) && resolved !== path.join(safeRoot, 'learner-profile.json')) {
+    throw new Error(`Profile path escapes state directory: ${resolved}`);
   }
-  if (process.env.CLAUDE_PLUGIN_ROOT) {
-    return path.join(process.env.CLAUDE_PLUGIN_ROOT, 'state', 'learner-profile.json');
-  }
-  return path.resolve(__dirname, '..', '..', 'state', 'learner-profile.json');
+
+  return resolved;
 }
 
 // --- Profile Construction ---
@@ -110,8 +116,13 @@ function loadProfile() {
   if (!fs.existsSync(filePath)) {
     return null;
   }
-  const raw = fs.readFileSync(filePath, 'utf-8');
-  return JSON.parse(raw);
+  try {
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    // Corrupted profile — treat as missing so callers can recreate
+    return null;
+  }
 }
 
 function saveProfile(profile) {
@@ -139,80 +150,83 @@ function saveProfile(profile) {
     } else {
       throw err;
     }
+  } finally {
+    // Clean up temp file if rename failed but didn't fall through to direct write
+    try { fs.unlinkSync(tmpPath); } catch { /* already renamed or cleaned up */ }
   }
 }
 
 // --- Validation ---
 
-function validateProfile(profile) {
+function validateDimensions(dimensions) {
   const errors = [];
+  if (!dimensions || typeof dimensions !== 'object') {
+    return ['dimensions must be an object'];
+  }
+  const keys = Object.keys(dimensions);
+  for (const dim of DIMENSION_NAMES) {
+    if (!keys.includes(dim)) errors.push(`Missing dimension: ${dim}`);
+  }
+  if (keys.length !== DIMENSION_NAMES.length) {
+    errors.push(`Expected ${DIMENSION_NAMES.length} dimensions, got ${keys.length}`);
+  }
+  for (const [name, dim] of Object.entries(dimensions)) {
+    if (!Number.isInteger(dim.level) || dim.level < 0 || dim.level > 5) {
+      errors.push(`${name}: level must be integer 0-5 (got ${dim.level})`);
+    }
+    if (typeof dim.fractional_level !== 'number') {
+      errors.push(`${name}: fractional_level must be a number`);
+    }
+    if (typeof dim.confidence !== 'number' || dim.confidence < 0.0 || dim.confidence > 1.0) {
+      errors.push(`${name}: confidence must be number 0.0-1.0 (got ${dim.confidence})`);
+    }
+    if (!Number.isInteger(dim.evidence_count) || dim.evidence_count < 0) {
+      errors.push(`${name}: evidence_count must be integer >= 0`);
+    }
+  }
+  return errors;
+}
 
+function validateSettings(settings) {
+  if (!settings) return ['settings is required'];
+  const errors = [];
+  if (!Number.isInteger(settings.verbosity) || settings.verbosity < 1 || settings.verbosity > 5) {
+    errors.push(`verbosity must be integer 1-5 (got ${settings.verbosity})`);
+  }
+  if (!Number.isInteger(settings.phase) || settings.phase < 0 || settings.phase > 5) {
+    errors.push(`phase must be integer 0-5 (got ${settings.phase})`);
+  }
+  if (settings.teaching_mode !== 'directive' && settings.teaching_mode !== 'socratic') {
+    errors.push(`teaching_mode must be "directive" or "socratic" (got "${settings.teaching_mode}")`);
+  }
+  return errors;
+}
+
+function validateSignalAccumulator(accumulator) {
+  if (!accumulator || typeof accumulator !== 'object') {
+    return ['signal_accumulator must be an object'];
+  }
+  const errors = [];
+  for (const dim of DIMENSION_NAMES) {
+    if (!(dim in accumulator)) errors.push(`signal_accumulator missing key: ${dim}`);
+  }
+  return errors;
+}
+
+function validateProfile(profile) {
+  if (!profile || typeof profile !== 'object') {
+    return { valid: false, errors: ['profile must be a non-null object'] };
+  }
+
+  const errors = [];
   if (typeof profile.schema_version !== 'string') {
     errors.push('schema_version must be a string');
   }
-
-  // Dimensions
-  if (!profile.dimensions || typeof profile.dimensions !== 'object') {
-    errors.push('dimensions must be an object');
-  } else {
-    const keys = Object.keys(profile.dimensions);
-    for (const dim of DIMENSION_NAMES) {
-      if (!keys.includes(dim)) {
-        errors.push(`Missing dimension: ${dim}`);
-      }
-    }
-    if (keys.length !== DIMENSION_NAMES.length) {
-      errors.push(`Expected ${DIMENSION_NAMES.length} dimensions, got ${keys.length}`);
-    }
-    for (const [name, dim] of Object.entries(profile.dimensions)) {
-      if (!Number.isInteger(dim.level) || dim.level < 0 || dim.level > 5) {
-        errors.push(`${name}: level must be integer 0-5 (got ${dim.level})`);
-      }
-      if (typeof dim.fractional_level !== 'number') {
-        errors.push(`${name}: fractional_level must be a number`);
-      }
-      if (typeof dim.confidence !== 'number' || dim.confidence < 0.0 || dim.confidence > 1.0) {
-        errors.push(`${name}: confidence must be number 0.0-1.0 (got ${dim.confidence})`);
-      }
-      if (!Number.isInteger(dim.evidence_count) || dim.evidence_count < 0) {
-        errors.push(`${name}: evidence_count must be integer >= 0`);
-      }
-    }
-  }
-
-  // Settings
-  if (profile.settings) {
-    if (!Number.isInteger(profile.settings.verbosity) || profile.settings.verbosity < 1 || profile.settings.verbosity > 5) {
-      errors.push(`verbosity must be integer 1-5 (got ${profile.settings.verbosity})`);
-    }
-    if (!Number.isInteger(profile.settings.phase) || profile.settings.phase < 0 || profile.settings.phase > 5) {
-      errors.push(`phase must be integer 0-5 (got ${profile.settings.phase})`);
-    }
-    if (profile.settings.teaching_mode !== 'directive' && profile.settings.teaching_mode !== 'socratic') {
-      errors.push(`teaching_mode must be "directive" or "socratic" (got "${profile.settings.teaching_mode}")`);
-    }
-  } else {
-    errors.push('settings is required');
-  }
-
-  // Arrays
-  if (!Array.isArray(profile.projects)) {
-    errors.push('projects must be an array');
-  }
-  if (!Array.isArray(profile.session_history)) {
-    errors.push('session_history must be an array');
-  }
-
-  // Signal accumulator
-  if (!profile.signal_accumulator || typeof profile.signal_accumulator !== 'object') {
-    errors.push('signal_accumulator must be an object');
-  } else {
-    for (const dim of DIMENSION_NAMES) {
-      if (!(dim in profile.signal_accumulator)) {
-        errors.push(`signal_accumulator missing key: ${dim}`);
-      }
-    }
-  }
+  errors.push(...validateDimensions(profile.dimensions));
+  errors.push(...validateSettings(profile.settings));
+  if (!Array.isArray(profile.projects)) errors.push('projects must be an array');
+  if (!Array.isArray(profile.session_history)) errors.push('session_history must be an array');
+  errors.push(...validateSignalAccumulator(profile.signal_accumulator));
 
   return { valid: errors.length === 0, errors };
 }

@@ -5,7 +5,49 @@ const { DIMENSION_NAMES } = require('./learner-profile');
 // --- Helpers ---
 
 function deepCopy(obj) {
-  return JSON.parse(JSON.stringify(obj));
+  return structuredClone(obj);
+}
+
+// --- Confidence constants ---
+
+const CONFIDENCE_FLOOR = 0.3;
+const CONFIDENCE_PER_EVIDENCE = 0.05;
+const CONFIDENCE_CAP = 0.95;
+
+// --- Level boundary helpers ---
+
+function applyLevelBoundary(current, dimension, accumulator) {
+  let levelChanged = false;
+  let direction = null;
+
+  if (current.fractional_level >= current.level + 1.0) {
+    current.level = Math.min(current.level + 1, 5);
+    current.fractional_level = current.level;
+    accumulator[dimension] = 0.0;
+    levelChanged = true;
+    direction = 'up';
+  } else if (current.level > 0 && current.fractional_level <= current.level - 1.0) {
+    current.level = Math.max(current.level - 1, 0);
+    current.fractional_level = current.level;
+    accumulator[dimension] = 0.0;
+    levelChanged = true;
+    direction = 'down';
+  }
+
+  return { levelChanged, direction };
+}
+
+function updateSubConcept(current, signal) {
+  if (!signal.sub_concept || !current.sub_concepts || !(signal.sub_concept in current.sub_concepts)) {
+    return;
+  }
+  const sub = current.sub_concepts[signal.sub_concept];
+  if (signal.weight > 0 && sub.level < current.level) {
+    sub.level = Math.min(sub.level + 1, 5);
+  } else if (signal.weight < 0 && sub.level > current.level) {
+    sub.level = Math.max(sub.level - 1, 0);
+  }
+  sub.confidence = Math.min(CONFIDENCE_CAP, sub.confidence + CONFIDENCE_PER_EVIDENCE);
 }
 
 // --- Core Algorithm ---
@@ -14,17 +56,8 @@ function updateLevel(profile, signal) {
   const updated = deepCopy(profile);
   const dimension = signal.dimension;
 
-  // Validate dimension
   if (!DIMENSION_NAMES.includes(dimension)) {
-    return {
-      profile: updated,
-      levelChanged: false,
-      direction: null,
-      newLevel: 0,
-      dimension,
-      dampedDelta: 0,
-      rawDelta: signal.weight,
-    };
+    return { profile: updated, levelChanged: false, direction: null, newLevel: 0, dimension, dampedDelta: 0, rawDelta: signal.weight };
   }
 
   const current = updated.dimensions[dimension];
@@ -33,79 +66,25 @@ function updateLevel(profile, signal) {
   if (signal.type === 'flag') {
     current.evidence_count += 1;
     current.last_assessed = new Date().toISOString();
-    return {
-      profile: updated,
-      levelChanged: false,
-      direction: null,
-      newLevel: current.level,
-      dimension,
-      dampedDelta: 0,
-      rawDelta: signal.weight,
-    };
+    return { profile: updated, levelChanged: false, direction: null, newLevel: current.level, dimension, dampedDelta: 0, rawDelta: signal.weight };
   }
 
-  // Step 1: Raw delta
   const rawDelta = signal.weight;
-
-  // Step 2: Dampen by confidence
   const dampedDelta = rawDelta * (1.0 - current.confidence * 0.5);
 
-  // Step 3: Apply to fractional level and signal accumulator
   updated.signal_accumulator[dimension] += dampedDelta;
   current.fractional_level += dampedDelta;
+  if (current.fractional_level < 0) current.fractional_level = 0.0;
 
-  // Floor fractional_level at 0
-  if (current.fractional_level < 0) {
-    current.fractional_level = 0.0;
-  }
+  const { levelChanged, direction } = applyLevelBoundary(current, dimension, updated.signal_accumulator);
 
-  // Step 4: Check for integer boundary crossing
-  let levelChanged = false;
-  let direction = null;
-
-  if (current.fractional_level >= current.level + 1.0) {
-    // Level up
-    current.level = Math.min(current.level + 1, 5);
-    current.fractional_level = current.level;
-    updated.signal_accumulator[dimension] = 0.0;
-    levelChanged = true;
-    direction = 'up';
-  } else if (current.level > 0 && current.fractional_level <= current.level - 1.0) {
-    // Level down
-    current.level = Math.max(current.level - 1, 0);
-    current.fractional_level = current.level;
-    updated.signal_accumulator[dimension] = 0.0;
-    levelChanged = true;
-    direction = 'down';
-  }
-
-  // Step 5: Update confidence
   current.evidence_count += 1;
-  current.confidence = Math.min(0.95, 0.3 + current.evidence_count * 0.05);
-
-  // Step 6: Update timestamp
+  current.confidence = Math.min(CONFIDENCE_CAP, CONFIDENCE_FLOOR + current.evidence_count * CONFIDENCE_PER_EVIDENCE);
   current.last_assessed = new Date().toISOString();
 
-  // Step 7: Update sub-concept if specified
-  if (signal.sub_concept && current.sub_concepts && signal.sub_concept in current.sub_concepts) {
-    const sub = current.sub_concepts[signal.sub_concept];
-    if (signal.weight > 0 && sub.level < current.level) {
-      sub.level = Math.min(sub.level + 1, 5);
-    } else if (signal.weight < 0 && sub.level > current.level) {
-      sub.level = Math.max(sub.level - 1, 0);
-    }
-    sub.confidence = Math.min(0.95, sub.confidence + 0.05);
-  }
+  updateSubConcept(current, signal);
 
-  return {
-    profile: updated,
-    levelChanged,
-    direction,
-    newLevel: current.level,
-    dimension,
-    dampedDelta,
-    rawDelta,
-  };
+  return { profile: updated, levelChanged, direction, newLevel: current.level, dimension, dampedDelta, rawDelta };
 }
 
 // --- Annotation Depth ---
@@ -117,6 +96,13 @@ function calculateAnnotationDepth(verbosity, dimensionLevel) {
 // --- Manual Override ---
 
 function manualOverride(profile, dimension, level, subConcept) {
+  if (!DIMENSION_NAMES.includes(dimension)) {
+    throw new Error(`Invalid dimension: "${dimension}"`);
+  }
+  if (!Number.isInteger(level) || level < 0 || level > 5) {
+    throw new Error(`level must be integer 0-5 (got ${level})`);
+  }
+
   const updated = deepCopy(profile);
 
   if (subConcept) {
@@ -187,69 +173,65 @@ function checkStrugglingDimensions(profile) {
   return false;
 }
 
+function checkPhaseCriteria(nextPhase, profile) {
+  const dimensions = profile.dimensions;
+  const met = [];
+  const unmet = [];
+
+  switch (nextPhase) {
+    case 1: {
+      const hasProject = (profile.projects || []).some(p => p.status === 'active');
+      if (hasProject) met.push('Has active project');
+      else unmet.push('Needs an active project with MVP defined');
+      break;
+    }
+    case 2: {
+      const checks = [['planning', 2], ['implementation', 2]];
+      for (const [dim, req] of checks) {
+        if (dimensions[dim].level >= req) met.push(`${dim} at Level ${req}+`);
+        else unmet.push(`${dim} needs Level ${req}+`);
+      }
+      break;
+    }
+    case 3: {
+      const count = Object.values(dimensions).filter(v => v.level >= 3).length;
+      if (count >= 3) met.push(`${count} dimensions at Level 3+`);
+      else unmet.push(`Need 3 dimensions at Level 3+ (have ${count})`);
+      break;
+    }
+    case 4: {
+      const count = Object.values(dimensions).filter(v => v.level >= 4).length;
+      if (count >= 5) met.push(`${count} dimensions at Level 4+`);
+      else unmet.push(`Need 5 dimensions at Level 4+ (have ${count})`);
+      break;
+    }
+    case 5: {
+      const count = Object.values(dimensions).filter(v => v.level >= 4).length;
+      if (count >= 7) met.push(`${count} dimensions at Level 4+`);
+      else unmet.push(`Need 7 dimensions at Level 4+ (have ${count})`);
+      break;
+    }
+  }
+
+  return { met, unmet };
+}
+
 function evaluatePhaseTransition(profile) {
   const currentPhase = profile.settings.phase;
   const nextPhase = currentPhase + 1;
 
   if (nextPhase > 5) {
-    return {
-      eligible: false,
-      currentPhase,
-      nextPhase: 5,
-      metCriteria: [],
-      unmetCriteria: ['Already at max phase'],
-      hasStrugglingDimensions: false,
-    };
+    return { eligible: false, currentPhase, nextPhase: 5, metCriteria: [], unmetCriteria: ['Already at max phase'], hasStrugglingDimensions: false };
   }
 
-  const dimensions = profile.dimensions;
-  const metCriteria = [];
-  const unmetCriteria = [];
-
-  switch (nextPhase) {
-    case 1: {
-      const hasProject = (profile.projects || []).some(p => p.status === 'active');
-      if (hasProject) metCriteria.push('Has active project');
-      else unmetCriteria.push('Needs an active project with MVP defined');
-      break;
-    }
-    case 2: {
-      const planOk = dimensions.planning.level >= 2;
-      const implOk = dimensions.implementation.level >= 2;
-      if (planOk) metCriteria.push('planning at Level 2+');
-      else unmetCriteria.push('planning needs Level 2+');
-      if (implOk) metCriteria.push('implementation at Level 2+');
-      else unmetCriteria.push('implementation needs Level 2+');
-      break;
-    }
-    case 3: {
-      const dimsAt3 = Object.entries(dimensions).filter(([, v]) => v.level >= 3);
-      if (dimsAt3.length >= 3) metCriteria.push(`${dimsAt3.length} dimensions at Level 3+`);
-      else unmetCriteria.push(`Need 3 dimensions at Level 3+ (have ${dimsAt3.length})`);
-      break;
-    }
-    case 4: {
-      const dimsAt4 = Object.entries(dimensions).filter(([, v]) => v.level >= 4);
-      if (dimsAt4.length >= 5) metCriteria.push(`${dimsAt4.length} dimensions at Level 4+`);
-      else unmetCriteria.push(`Need 5 dimensions at Level 4+ (have ${dimsAt4.length})`);
-      break;
-    }
-    case 5: {
-      const dimsAt4 = Object.entries(dimensions).filter(([, v]) => v.level >= 4);
-      if (dimsAt4.length >= 7) metCriteria.push(`${dimsAt4.length} dimensions at Level 4+`);
-      else unmetCriteria.push(`Need 7 dimensions at Level 4+ (have ${dimsAt4.length})`);
-      break;
-    }
-  }
+  const { met: metCriteria, unmet: unmetCriteria } = checkPhaseCriteria(nextPhase, profile);
 
   const hasStrugglingDimensions = checkStrugglingDimensions(profile);
   if (hasStrugglingDimensions) {
     unmetCriteria.push('Has struggling dimensions (negative signal accumulator for 3+ sessions)');
   }
 
-  const eligible = unmetCriteria.length === 0;
-
-  return { eligible, currentPhase, nextPhase, metCriteria, unmetCriteria, hasStrugglingDimensions };
+  return { eligible: unmetCriteria.length === 0, currentPhase, nextPhase, metCriteria, unmetCriteria, hasStrugglingDimensions };
 }
 
 // --- Mismatch Detection ---

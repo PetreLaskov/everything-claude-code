@@ -3,7 +3,6 @@
 // session-start-loader.js — SessionStart hook
 // Loads learner profile and injects context summary into Claude's session.
 
-const fs = require('fs');
 const path = require('path');
 
 function main() {

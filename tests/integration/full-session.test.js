@@ -47,10 +47,6 @@ function teardownTmpDir() {
   tmpDir = null;
 }
 
-function makeDefaultProfile() {
-  return createDefaultProfile();
-}
-
 // --- Session Lifecycle Tests ---
 
 describe('session lifecycle', () => {
@@ -58,7 +54,7 @@ describe('session lifecycle', () => {
   afterEach(teardownTmpDir);
 
   it('creates fresh profile with all dimensions at level 0', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     for (const dim of getDimensionNames()) {
       assert.equal(profile.dimensions[dim].level, 0);
       assert.equal(profile.dimensions[dim].fractional_level, 0.0);
@@ -67,13 +63,13 @@ describe('session lifecycle', () => {
   });
 
   it('persists profile and reloads with identical state', () => {
-    const original = makeDefaultProfile();
+    const original = createDefaultProfile();
     const loaded = loadProfile();
     assert.deepStrictEqual(loaded, original);
   });
 
   it('saves modified profile and reloads with changes preserved', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     const modified = {
       ...profile,
       settings: { ...profile.settings, verbosity: 5 },
@@ -91,7 +87,7 @@ describe('signal capture and level update flow', () => {
   afterEach(teardownTmpDir);
 
   it('conventional commit produces git_workflow signal', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     const signals = extractSignals(
       'Bash',
       { command: 'git commit -m "feat: add login page"' },
@@ -105,7 +101,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('signal updates fractional level via competence engine', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     const signal = {
       dimension: 'git_workflow',
       weight: 0.15,
@@ -118,7 +114,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('multiple signals accumulate fractional levels', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     const signal = {
       dimension: 'git_workflow',
       weight: 0.15,
@@ -137,7 +133,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('enough signals trigger level-up', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     const signal = {
       dimension: 'implementation',
       weight: 0.20,
@@ -161,7 +157,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('confidence increases with evidence count', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     const initialConfidence = profile.dimensions.git_workflow.confidence;
     const signal = {
       dimension: 'git_workflow',
@@ -193,7 +189,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('false positive filter suppresses duplicate signals', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     const signal = {
       dimension: 'git_workflow',
       weight: 0.15,
@@ -206,7 +202,7 @@ describe('signal capture and level update flow', () => {
   });
 
   it('false positive filter suppresses signals in test fixtures', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     const signal = { dimension: 'security', weight: 0.20, type: 'positive' };
     const context = { filePath: '/project/__mocks__/auth.js' };
     assert.ok(isFalsePositive(signal, profile, context), 'Test fixture signals should be filtered');
@@ -220,7 +216,7 @@ describe('phase transition flow', () => {
   afterEach(teardownTmpDir);
 
   it('Phase 0→1 requires active project', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     // No project → not eligible
     const result = evaluatePhaseTransition(profile);
     assert.equal(result.eligible, false);
@@ -228,7 +224,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 0→1 eligible with active project', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     profile.projects = [{ id: 'proj-1', name: 'My App', status: 'active', archetype: 'web-app' }];
     const result = evaluatePhaseTransition(profile);
     assert.equal(result.eligible, true);
@@ -236,7 +232,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 1→2 requires planning and implementation at Level 2', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     profile.settings.phase = 1;
     profile.projects = [{ id: 'proj-1', name: 'App', status: 'active' }];
 
@@ -247,7 +243,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 1→2 eligible when criteria met', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     profile.settings.phase = 1;
 
     // Boost planning and implementation to level 2
@@ -260,7 +256,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 2→3 requires 3 dimensions at Level 3+', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     profile.settings.phase = 2;
 
     // Only 2 dimensions at level 3
@@ -273,7 +269,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 2→3 eligible with 3 dimensions at Level 3', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     profile.settings.phase = 2;
 
     profile = manualOverride(profile, 'planning', 3);
@@ -286,7 +282,7 @@ describe('phase transition flow', () => {
   });
 
   it('Phase 5 is max — not eligible for further transition', () => {
-    const profile = makeDefaultProfile();
+    const profile = createDefaultProfile();
     profile.settings.phase = 5;
     const result = evaluatePhaseTransition(profile);
     assert.equal(result.eligible, false);
@@ -302,7 +298,7 @@ describe('multi-session accumulation', () => {
 
   it('signals accumulate across sessions via save/load', () => {
     // Session 1: capture signals, save profile
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     const signal = {
       dimension: 'git_workflow',
       weight: 0.15,
@@ -331,7 +327,7 @@ describe('multi-session accumulation', () => {
   });
 
   it('session history appends correctly across sessions', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
 
     // Session 1
     profile = addSessionEntry(profile, {
@@ -358,7 +354,7 @@ describe('multi-session accumulation', () => {
   });
 
   it('50-session trim preserves most recent entries', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
 
     // Add 55 sessions
     for (let i = 0; i < 55; i++) {
@@ -376,7 +372,7 @@ describe('multi-session accumulation', () => {
   });
 
   it('getLastSession returns the most recent entry after reload', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     profile = addSessionEntry(profile, { session_id: 'first', date: '2026-03-20' });
     profile = addSessionEntry(profile, { session_id: 'last', date: '2026-03-24' });
     saveProfile(profile);
@@ -394,7 +390,7 @@ describe('end-to-end: signal to annotation', () => {
   afterEach(teardownTmpDir);
 
   it('full flow: extract signal → update level → check annotation depth', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
 
     // Step 1: Extract signal from a conventional commit
     const signals = extractSignals(
@@ -420,7 +416,7 @@ describe('end-to-end: signal to annotation', () => {
   });
 
   it('full flow: accumulated signals → level-up → reduced annotation', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     const verbosity = profile.settings.verbosity; // 3
 
     // Initial depth at level 0
@@ -449,7 +445,7 @@ describe('end-to-end: signal to annotation', () => {
   });
 
   it('full flow: level-up → persist → reload → annotation uses new level', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
 
     // Level up implementation via manual override (simulates accumulated signals)
     profile = manualOverride(profile, 'implementation', 3);
@@ -466,7 +462,7 @@ describe('end-to-end: signal to annotation', () => {
   });
 
   it('average level tracks overall progression', () => {
-    let profile = makeDefaultProfile();
+    let profile = createDefaultProfile();
     assert.equal(getAverageLevel(profile), 0.0);
 
     // Level up a few dimensions

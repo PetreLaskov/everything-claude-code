@@ -274,11 +274,63 @@ function getPrimaryDimensions(template) {
     .sort((a, b) => b.weight - a.weight);
 }
 
+// --- Scoring constants ---
+
+const SCORE_WEIGHT_INTEREST = 0.4;
+const SCORE_WEIGHT_DIFFICULTY = 0.3;
+const SCORE_WEIGHT_GAP = 0.3;
+const DIFFICULTY_PENALTY_FACTOR = 0.25;
+const HIGH_SCORE_THRESHOLD = 0.7;
+
+function computeRelevanceScore(template, avgLevel, interestSet, dims) {
+  const matchedKeywords = template.keywords.filter(k => interestSet.has(k.toLowerCase()));
+  const interestScore = template.keywords.length > 0
+    ? matchedKeywords.length / template.keywords.length
+    : 0;
+
+  const optimalDifficulty = avgLevel + 1;
+  const difficultyScore = Math.max(0, Math.min(1,
+    1.0 - Math.abs(template.difficulty - optimalDifficulty) * DIFFICULTY_PENALTY_FACTOR));
+
+  let gapSum = 0;
+  let gapMax = 0;
+  for (const dim of Object.keys(template.dimensions_developed)) {
+    const learnerLevel = dims[dim] ? dims[dim].level : 0;
+    gapSum += template.dimensions_developed[dim] * ((5 - learnerLevel) / 5);
+    gapMax += template.dimensions_developed[dim];
+  }
+  const gapScore = gapMax > 0 ? gapSum / gapMax : 0;
+
+  const relevanceScore = Math.round(
+    (interestScore * SCORE_WEIGHT_INTEREST + difficultyScore * SCORE_WEIGHT_DIFFICULTY + gapScore * SCORE_WEIGHT_GAP) * 1000
+  ) / 1000;
+
+  return { relevanceScore, matchedKeywords, difficultyScore, gapScore };
+}
+
+function buildReason(matchedKeywords, difficultyScore, gapScore, template) {
+  const reasons = [];
+  if (matchedKeywords.length > 0) {
+    reasons.push(`Matches your interests: ${matchedKeywords.join(', ')}`);
+  }
+  if (difficultyScore > HIGH_SCORE_THRESHOLD) {
+    reasons.push('Good difficulty fit for your current level');
+  }
+  if (gapScore > HIGH_SCORE_THRESHOLD) {
+    reasons.push('Develops dimensions you haven\'t explored yet');
+  }
+  if (reasons.length === 0) {
+    const keyAreas = Object.keys(template.dimensions_developed).filter(d => template.dimensions_developed[d] > 0.5).length;
+    reasons.push(`Covers ${keyAreas} key development areas`);
+  }
+  return reasons.join('. ');
+}
+
 function matchTemplates(userProfile, options = {}) {
   const { maxDifficulty, route, maxResults = 3 } = options;
 
-  // Step 1: Filter
-  let candidates = TEMPLATES;
+  // Step 1: Filter (defensive copy prevents accidental mutation of module constant)
+  let candidates = [...TEMPLATES];
   if (maxDifficulty != null) {
     candidates = candidates.filter(t => t.difficulty <= maxDifficulty);
   }
@@ -286,7 +338,6 @@ function matchTemplates(userProfile, options = {}) {
     candidates = candidates.filter(t => t.route === route);
   }
 
-  // Compute average level for difficulty fit
   const dims = userProfile.dimensions || {};
   const dimValues = Object.values(dims);
   const avgLevel = dimValues.length > 0
@@ -300,56 +351,17 @@ function matchTemplates(userProfile, options = {}) {
     ...(domain ? [domain.toLowerCase()] : []),
   ]);
 
-  // Step 2: Score each candidate
+  // Step 2: Score and sort
   const scored = candidates.map(template => {
-    // Interest match (weight 0.4)
-    const matchedKeywords = template.keywords.filter(k => interestSet.has(k.toLowerCase()));
-    const interestScore = template.keywords.length > 0
-      ? matchedKeywords.length / template.keywords.length
-      : 0;
-
-    // Difficulty fit (weight 0.3) — optimal is avgLevel + 1
-    const optimalDifficulty = avgLevel + 1;
-    const difficultyScore = Math.max(0, Math.min(1,
-      1.0 - Math.abs(template.difficulty - optimalDifficulty) * 0.25));
-
-    // Dimension gap fill (weight 0.3)
-    let gapSum = 0;
-    let gapMax = 0;
-    for (const dim of Object.keys(template.dimensions_developed)) {
-      const learnerLevel = dims[dim] ? dims[dim].level : 0;
-      gapSum += template.dimensions_developed[dim] * ((5 - learnerLevel) / 5);
-      gapMax += template.dimensions_developed[dim];
-    }
-    const gapScore = gapMax > 0 ? gapSum / gapMax : 0;
-
-    const relevanceScore = Math.round(
-      (interestScore * 0.4 + difficultyScore * 0.3 + gapScore * 0.3) * 1000
-    ) / 1000;
-
-    // Build reason
-    const reasons = [];
-    if (matchedKeywords.length > 0) {
-      reasons.push(`Matches your interests: ${matchedKeywords.join(', ')}`);
-    }
-    if (difficultyScore > 0.7) {
-      reasons.push('Good difficulty fit for your current level');
-    }
-    if (gapScore > 0.7) {
-      reasons.push('Develops dimensions you haven\'t explored yet');
-    }
-    if (reasons.length === 0) {
-      reasons.push(`Covers ${Object.keys(template.dimensions_developed).filter(d => template.dimensions_developed[d] > 0.5).length} key development areas`);
-    }
-
+    const { relevanceScore, matchedKeywords, difficultyScore, gapScore } =
+      computeRelevanceScore(template, avgLevel, interestSet, dims);
     return {
       template: { ...template },
       relevanceScore,
-      reason: reasons.join('. '),
+      reason: buildReason(matchedKeywords, difficultyScore, gapScore, template),
     };
   });
 
-  // Step 3: Sort and limit
   scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
   return scored.slice(0, maxResults);
 }

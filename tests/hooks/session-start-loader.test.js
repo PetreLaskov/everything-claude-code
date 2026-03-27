@@ -27,9 +27,13 @@ function teardownTmpDir() {
 function createProfile(overrides = {}) {
   const { createDefaultProfile } = require('../../scripts/lib/learner-profile');
   const origDir = process.env.MDH_STATE_DIR;
-  process.env.MDH_STATE_DIR = tmpDir;
-  const profile = createDefaultProfile();
-  process.env.MDH_STATE_DIR = origDir;
+  let profile;
+  try {
+    process.env.MDH_STATE_DIR = tmpDir;
+    profile = createDefaultProfile();
+  } finally {
+    process.env.MDH_STATE_DIR = origDir;
+  }
 
   const merged = applyOverrides(profile, overrides);
   fs.writeFileSync(
@@ -239,7 +243,7 @@ describe('session-start-loader hook script', () => {
   });
 
   describe('error handling', () => {
-    it('outputs fallback context on corrupted profile', () => {
+    it('recovers from corrupted profile by creating fresh default', () => {
       // Write invalid JSON to profile path
       fs.writeFileSync(
         path.join(tmpDir, 'learner-profile.json'),
@@ -250,8 +254,8 @@ describe('session-start-loader hook script', () => {
       assert.equal(result.exitCode, 0, 'Must exit 0 even on error');
       const output = parseStdout(result);
       assert.equal(output.type, 'mdh_session_context');
-      assert.equal(output.phase, 0);
-      assert.ok(output.error, 'Fallback output should include error message');
+      assert.equal(output.phase, 0, 'Should default to phase 0');
+      assert.equal(output.teaching_mode, 'directive', 'Should use default teaching mode');
     });
   });
 

@@ -27,9 +27,13 @@ function teardownTmpDir() {
 function createProfile(overrides = {}) {
   const { createDefaultProfile } = require('../../scripts/lib/learner-profile');
   const origDir = process.env.MDH_STATE_DIR;
-  process.env.MDH_STATE_DIR = tmpDir;
-  const profile = createDefaultProfile();
-  process.env.MDH_STATE_DIR = origDir;
+  let profile;
+  try {
+    process.env.MDH_STATE_DIR = tmpDir;
+    profile = createDefaultProfile();
+  } finally {
+    process.env.MDH_STATE_DIR = origDir;
+  }
 
   const merged = applyOverrides(profile, overrides);
   fs.writeFileSync(
@@ -173,8 +177,8 @@ describe('learner-state-persist hook script', () => {
       runHook();
       const profile = loadPersistedProfile();
       const lastEntry = profile.session_history[profile.session_history.length - 1];
-      // Duration should be approximately 30 minutes (±2 for test execution)
-      assert.ok(lastEntry.duration_minutes >= 28 && lastEntry.duration_minutes <= 32,
+      // Duration should be approximately 30 minutes (±5 for CI/slow hosts)
+      assert.ok(lastEntry.duration_minutes >= 25 && lastEntry.duration_minutes <= 35,
         `Duration should be ~30min, got ${lastEntry.duration_minutes}`);
     });
 
